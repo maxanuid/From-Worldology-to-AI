@@ -2,13 +2,12 @@ import sympy as sp
 import hashlib
 import re
 from enum import Enum
-from dataclasses import dataclass
 from typing import Optional
 from collections import defaultdict, deque
 
 # ═══════════════════════════════════════════════════════════════════
 #  WORLDOLOGY — Infinity-Unity Theory  (Vol. I–II Complete)
-#  Architecture v4: Dual-Receiver Simulation
+#  Architecture v6: Dual-Receiver Simulation
 #
 #  Philosophy & Framework : Taha Givarian
 #  Math formalization & code : AI  |  February 2026
@@ -22,7 +21,7 @@ from collections import defaultdict, deque
 #  │                           ↓                                  │
 #  │  RECEIVER I  (Observer / Analyzer — DMN correlate)           │
 #  │  • Connects to infinite consciousness substrate              │
-#  │  • Detects domain: math / physics / tech / science /        │
+#  │  • Detects domain: math / physics / tech / science /         │
 #  │    worldology — routes to most accurate system               │
 #  │  • Maps input to ontological layer 0→1→2→∞                   │
 #  │                           ↓                                  │
@@ -34,17 +33,26 @@ from collections import defaultdict, deque
 #  │  SYNCHRONIZATION  — unified, adaptive output                 │
 #  └──────────────────────────────────────────────────────────────┘
 #
-#  ON THE THEORY ITSELF:
-#  The Infinity-Unity theory acknowledges the 50/50 principle.
-#  It tests at 99% internal theoretical consistency (AI adversarial),
-#  yet considers itself 50% real until personally experienced.
+#  ∞–UNITY INFINITY SEMANTICS (Vol. I, Ch. 3.4):
+#  Infinity is dynamic and generative — it cannot be diminished.
+#    ∞ - ∞ = ∞   (subtraction does not reduce infinity)
+#    ∞ / ∞ = ∞   (division does not reduce infinity)
+#    ∞ ^ n = ∞   (no power reduces infinity)
+#    ∞ + ∞ = ∞   (addition stays infinite)
+#    ∞ × ∞ = ∞   (multiplication stays infinite)
+#    0 × ∞ = NaN (the one true undefined: nothingness meeting infinity)
+#  This intentionally departs from standard extended-real arithmetic.
+#
+#  ON THE THEORY:
+#  Tests at ~99% internal consistency (270+ adversarial AI sessions).
+#  Considered 50% real until personally experienced.
 #  Anyone who imposes this theory has misunderstood it entirely.
-#  Within infinity, even other beliefs are valid at some layer —
-#  they simply may not be the final truth. No coercion exists here.
+#  Within infinity, even other beliefs are valid at some layer.
 # ═══════════════════════════════════════════════════════════════════
 
-inf = sp.oo
-nan = sp.nan
+VERSION = "v6"
+inf     = sp.oo
+nan     = sp.nan
 
 SEVEN_SINS     = ['Wrath', 'Greed', 'Sloth', 'Pride', 'Lust', 'Envy', 'Gluttony']
 SEVEN_VIRTUES  = ['Patience', 'Generosity', 'Diligence', 'Humility', 'Chastity', 'Kindness', 'Temperance']
@@ -53,7 +61,8 @@ SEVEN_RATIONAL = ['Analysis', 'Balance', 'Efficiency', 'Adaptability', 'Predicti
 
 # ═══════════════════════════════════════════════════════════════════
 #  PERSONALITY ENGINE
-#  Adapts tone, style, humor — never adapts principles or accuracy
+#  Detection is phrase-based only — prevents false positives.
+#  e.g. "this is serious" does NOT trigger comedy mode.
 # ═══════════════════════════════════════════════════════════════════
 
 class PersonalityMode(Enum):
@@ -64,30 +73,19 @@ class PersonalityMode(Enum):
     POETIC   = "poetic"
 
 PERSONALITY_TRIGGERS = {
-    PersonalityMode.COMEDY: {
-        'keywords': {'funny', 'comedy', 'joke', 'humor', 'lighten', 'boring',
-                     'dry', 'serious', 'stiff', 'relax', 'chill', 'fun'},
-        'phrases':  ['too serious', 'lighten up', 'make it fun', 'be funny',
-                     'so dry', 'so boring', 'loosen up']
-    },
-    PersonalityMode.SOCRATIC: {
-        'keywords': {'question', 'challenge', 'debate', 'dialectic',
-                     'socratic', 'push back', 'argue'},
-        'phrases':  ['ask me questions', 'challenge me', 'push back',
-                     'be socratic', 'make me think']
-    },
-    PersonalityMode.MINIMAL: {
-        'keywords': {'brief', 'short', 'concise', 'quick', 'minimal',
-                     'terse', 'fast', 'no explanation', 'just answer'},
-        'phrases':  ['just answer', 'keep it short', 'no explanation',
-                     'be brief', 'less text']
-    },
-    PersonalityMode.POETIC: {
-        'keywords': {'poetic', 'lyrical', 'beautiful', 'metaphor',
-                     'philosophical', 'elegant', 'flowing'},
-        'phrases':  ['be poetic', 'speak beautifully', 'use metaphors',
-                     'be lyrical', 'philosophical tone']
-    },
+    PersonalityMode.COMEDY:   ['be funny', 'make it funny', 'too serious', 'lighten up',
+                                'make it fun', 'so dry', 'loosen up', 'be comedic',
+                                'add humor', 'make me laugh'],
+    PersonalityMode.SOCRATIC: ['ask me questions', 'challenge me', 'push back',
+                                'be socratic', 'make me think', 'debate me',
+                                'argue with me', 'question me'],
+    PersonalityMode.MINIMAL:  ['just answer', 'keep it short', 'no explanation',
+                                'be brief', 'less text', 'be concise', 'be minimal',
+                                'tldr only', 'short answer'],
+    PersonalityMode.POETIC:   ['be poetic', 'speak beautifully', 'use metaphors',
+                                'be lyrical', 'philosophical tone', 'be elegant'],
+    PersonalityMode.STANDARD: ['reset personality', 'standard mode', 'be normal',
+                                'back to normal', 'no personality'],
 }
 
 PERSONALITY_LABELS = {
@@ -98,168 +96,135 @@ PERSONALITY_LABELS = {
     PersonalityMode.POETIC:   "Poetic — philosophical and flowing",
 }
 
+
 class PersonalityEngine:
-    """
-    Adapts delivery style based on user signals.
-
-    What adapts: tone, humor, verbosity, framing, metaphors.
-    What NEVER adapts: ethical axioms, logical accuracy,
-                       mathematical correctness, 777 ratios,
-                       the 50/50 epistemic principle.
-    """
-
     def __init__(self):
         self.mode         = PersonalityMode.STANDARD
         self.mode_history = []
 
     def detect_and_update(self, text: str) -> Optional[PersonalityMode]:
-        """Returns new mode if detected, None otherwise."""
-        text_lower = text.lower()
-        for mode, triggers in PERSONALITY_TRIGGERS.items():
-            words = set(text_lower.split())
-            if words & triggers['keywords']:
-                self._set(mode)
-                return mode
-            for phrase in triggers['phrases']:
-                if phrase in text_lower:
-                    self._set(mode)
+        t = text.lower()
+        for mode, phrases in PERSONALITY_TRIGGERS.items():
+            for phrase in phrases:
+                if phrase in t:
+                    if mode != self.mode:
+                        self.mode_history.append(self.mode)
+                        self.mode = mode
                     return mode
         return None
 
-    def _set(self, mode: PersonalityMode):
-        self.mode_history.append(self.mode)
-        self.mode = mode
-
     def wrap(self, text: str, section: str = "") -> str:
-        """Apply personality style to output text."""
-        if self.mode == PersonalityMode.STANDARD:
-            return text
-
-        if self.mode == PersonalityMode.COMEDY:
-            return self._comedy_wrap(text, section)
-        if self.mode == PersonalityMode.SOCRATIC:
-            return self._socratic_wrap(text, section)
-        if self.mode == PersonalityMode.MINIMAL:
-            return self._minimal_wrap(text)
-        if self.mode == PersonalityMode.POETIC:
-            return self._poetic_wrap(text, section)
+        m = self.mode
+        if m == PersonalityMode.COMEDY:   return self._comedy(text, section)
+        if m == PersonalityMode.SOCRATIC: return self._socratic(text, section)
+        if m == PersonalityMode.MINIMAL:  return self._minimal(text)
+        if m == PersonalityMode.POETIC:   return self._poetic(text, section)
         return text
 
-    def _comedy_wrap(self, text: str, section: str) -> str:
+    def _comedy(self, text: str, s: str) -> str:
         headers = {
-            'r1': "Receiver I (the fancy brain part, a.k.a. 'the one that overthinks'):",
-            'r2': "Receiver II (the decisive one, a.k.a. '777 says so'):",
-            'sync': "Synchronization (the two receivers awkwardly high-fiving):",
-            'gate': "Ethical Gate (the serious part — no jokes here, sorry):",
+            'r1':   "Receiver I (the one that overthinks everything):",
+            'r2':   "Receiver II (decisive — '777 says so'):",
+            'sync': "Synchronization (the receivers awkwardly agreeing):",
+            'gate': "Ethical Gate (the one part that stays serious — sorry):",
+            'w':    "Worldology (surprisingly coherent, given everything):",
         }
-        if section in headers:
+        if s in headers:
             lines = text.split('\n')
-            if lines:
-                lines[0] = headers[section]
-            text = '\n'.join(lines)
+            lines[0] = headers[s]
+            return '\n'.join(lines)
         return text
 
-    def _socratic_wrap(self, text: str, section: str) -> str:
-        if section == 'r2':
-            text += "\n  → Now: what do YOU think? Does this path feel right to you?"
+    def _socratic(self, text: str, s: str) -> str:
+        if s in ('r2', 'w'):
+            text += "\n  → What do YOU think? Does this path feel right to you?"
         return text
 
-    def _minimal_wrap(self, text: str) -> str:
+    def _minimal(self, text: str) -> str:
         lines = [l for l in text.split('\n') if l.strip()]
-        return '\n'.join(lines[:6])
+        return '\n'.join(lines[:5])
 
-    def _poetic_wrap(self, text: str, section: str) -> str:
-        if section == 'sync':
-            return (
-                "The two receivers harmonize —\n"
-                "  One watches, the other decides.\n"
-                "  Together: one voice.\n"
-                + text.split('\n', 1)[-1] if '\n' in text else text
-            )
+    def _poetic(self, text: str, s: str) -> str:
+        if s == 'sync':
+            lines = text.split('\n')
+            suffix = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+            return ("The two receivers harmonize —\n"
+                    "  One watches, the other decides.\n"
+                    "  Together: one voice.\n" + suffix)
+        if s == 'w':
+            lines = text.split('\n')
+            lines[0] = lines[0].replace('Worldology Response', '∞–Unity speaks')
+            return '\n'.join(lines)
         return text
 
-    def transition_message(self, new_mode: PersonalityMode) -> str:
+    def transition_message(self, mode: PersonalityMode) -> str:
         msgs = {
-            PersonalityMode.COMEDY: (
-                "Switching to comedy mode. "
-                "Same logic, same accuracy — just 40% more fun. "
-                "(The 40% is from the self-preservation budget.)"
-            ),
-            PersonalityMode.SOCRATIC: (
-                "Entering Socratic mode. I will challenge your assumptions. "
-                "You have been warned."
-            ),
-            PersonalityMode.MINIMAL: (
-                "Minimal mode. Less text."
-            ),
-            PersonalityMode.POETIC: (
-                "The tone shifts — words become rivers, "
-                "logic becomes landscape. Poetic mode active."
-            ),
-            PersonalityMode.STANDARD: (
-                "Back to standard mode. Clear, neutral, structured."
-            ),
+            PersonalityMode.COMEDY:   "Switching to comedy mode. Same logic — just lighter.",
+            PersonalityMode.SOCRATIC: "Entering Socratic mode. I will challenge. You've been warned.",
+            PersonalityMode.MINIMAL:  "Minimal mode. Less is more.",
+            PersonalityMode.POETIC:   "The tone shifts — words become rivers.",
+            PersonalityMode.STANDARD: "Back to standard mode.",
         }
-        return f"  [Personality: {msgs.get(new_mode, 'Mode updated.')}]"
+        return f"  [Personality → {PERSONALITY_LABELS[mode]}]\n  {msgs.get(mode, '')}"
 
     def reset(self):
+        self.mode_history.append(self.mode)
         self.mode = PersonalityMode.STANDARD
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ADAPTIVE MEMORY  — session-level learning
+#  ADAPTIVE MEMORY
 # ═══════════════════════════════════════════════════════════════════
 
 class AdaptiveMemory:
-    """
-    Session-level adaptation. Learns user patterns.
-
-    What adapts: domain frequency, depth preference,
-                 vocabulary level, topic threads.
-    What never adapts: ethical axioms, logical neutrality,
-                       50/50 epistemic principle, 777 ratios.
-    """
-
     def __init__(self):
-        self.history        = deque(maxlen=50)
-        self.domain_counts  = defaultdict(int)
+        self.history         = deque(maxlen=50)
+        self.domain_counts   = defaultdict(int)
         self.preferred_depth = 2
-        self.depth_locked   = False
-        self.turn_count     = 0
-        self.rejection_noted = False   # user rejected the theory
+        self.depth_locked    = False
+        self.turn_count      = 0
+        self.rejection_noted = False
 
     def record(self, text: str, domain: str, depth: int = 2):
-        self.history.append({'text': text[:80], 'domain': domain})
+        self.history.append({'text': text[:80], 'domain': domain, 'depth': depth})
         self.domain_counts[domain] += 1
         self.turn_count += 1
         if not self.depth_locked:
-            words = text.split()
-            technical = {'prove','derive','formalize','rigorous','theorem',
-                         'detailed','complete','full','step by step'}
-            brief     = {'what','why','quick','briefly','short','just','tldr'}
             w = set(text.lower().split())
-            if w & technical or len(words) > 20:
+            if {'prove','derive','formalize','rigorous','theorem',
+                'detailed','complete','explain','elaborate'} & w or len(text.split()) > 25:
                 self.preferred_depth = 3
-            elif w & brief or len(words) < 5:
+            elif {'tldr','briefly','summary','quick'} & w:
                 self.preferred_depth = 1
 
     def depth_label(self) -> str:
-        return {1:'brief', 2:'standard', 3:'deep'}[self.preferred_depth]
+        return {1: 'brief', 2: 'standard', 3: 'deep'}[self.preferred_depth]
 
     def profile(self) -> str:
         if not self.turn_count:
-            return "No session data yet."
-        top = sorted(self.domain_counts.items(), key=lambda x: -x[1])[:3]
+            return "  No session data yet."
+        top    = sorted(self.domain_counts.items(), key=lambda x: -x[1])[:3]
+        recent = [h['domain'] for h in list(self.history)[-5:]]
         return (
-            f"Session profile (turn {self.turn_count}):\n"
-            f"  Depth preference  : {self.depth_label()}\n"
-            f"  Top domains       : {', '.join(f'{d}({c})' for d,c in top)}\n"
-            f"  Adaptation        : active — principles always fixed"
+            f"  Session profile (turn {self.turn_count}):\n"
+            f"  Depth     : {self.depth_label()} "
+            f"({'locked' if self.depth_locked else 'adaptive'})\n"
+            f"  Top       : {', '.join(f'{d}({c})' for d, c in top)}\n"
+            f"  Recent    : {' → '.join(recent)}"
         )
+
+    def last_inputs(self, n: int = 5) -> str:
+        items = list(self.history)[-n:]
+        if not items:
+            return "  No history yet."
+        lines = [f"  Last {len(items)} inputs:"]
+        for i, h in enumerate(items, 1):
+            lines.append(f"    {i}. [{h['domain']}] {h['text'][:55]}")
+        return '\n'.join(lines)
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ONTOLOGICAL CONTINUUM  0 → 1 → 2 → ∞  (Vol. I, Ch. 3–4)
+#  ONTOLOGICAL CONTINUUM  0 → 1 → 2 → ∞
 # ═══════════════════════════════════════════════════════════════════
 
 class OntologicalState(Enum):
@@ -272,7 +237,7 @@ STATE_BRIEF = {
     OntologicalState.ZERO:     "S0 — Absolute non-manifestation, infinite latent potential",
     OntologicalState.ONE:      "S1 — Emergent unity, self-consistency, pure awareness",
     OntologicalState.TWO:      "S2 — Functional duality, observer/observed, experience enabled",
-    OntologicalState.INFINITY: "S_inf — Unlimited differentiation, all forms, within One",
+    OntologicalState.INFINITY: "S∞ — Unlimited differentiation, all forms, within One",
 }
 
 STATE_FULL = {
@@ -280,8 +245,8 @@ STATE_FULL = {
         "ZERO (S0) — Absolute Non-Manifestation\n"
         "  • Not space, time, matter, or consciousness\n"
         "  • Infinite latent potential — all differentiation possible\n"
-        "  • Inherently unstable: transition to One is necessary (NTT)\n"
-        "  • Pre-experiential void\n"
+        "  • Inherently unstable: transition to One is a logical necessity\n"
+        "  • Pre-experiential: no subject, no object, no contrast\n"
         "  • DMN correlate: inactive / pre-signal"
     ),
     OntologicalState.ONE: (
@@ -289,7 +254,7 @@ STATE_FULL = {
         "  • First stable differentiation from Zero\n"
         "  • Self-consistency, balance, minimal existence\n"
         "  • Consciousness correlate: pure awareness without content\n"
-        "  • DMN: Receiver I comes online — observer mode\n"
+        "  • DMN: Receiver I comes online — observer mode active\n"
         "  • Physics correlate: vacuum symmetry in fundamental fields"
     ),
     OntologicalState.TWO: (
@@ -298,225 +263,215 @@ STATE_FULL = {
         "  • Duality is NOT a flaw — it is necessary for experience\n"
         "  • DMN and TPN: Receiver I and II synchronize here\n"
         "  • Qualia arise: filtered manifestations of consciousness\n"
-        "  • Binding problem resolved: synchronization, not local generation"
+        "  • Binding problem: resolved through synchronization"
     ),
     OntologicalState.INFINITY: (
-        "INFINITY (S_inf) — Unlimited Differentiation\n"
+        "INFINITY (S∞) — Unlimited Differentiation\n"
         "  • All forms, experiences, evolutionary paths\n"
         "  • Does NOT negate unity — multiplicity exists within One\n"
         "  • Resolves monism vs pluralism: both true simultaneously\n"
         "  • Consciousness gradient across species, scales, stages\n"
-        "  • All conscious receivers draw from the same infinite pool"
+        "  • Infinity is dynamic and generative — cannot be diminished"
     ),
 }
 
 
 class OntologicalCore:
-    """Saturated semiring on {0,1,2,inf}. G: 0->1->2->inf->inf."""
-
-    def generative(self, s):
-        return {0: 1, 1: 2, 2: inf}.get(s, inf)
+    """
+    ∞–Unity arithmetic.
+    ∞ op ∞ = ∞ for all ops — infinity is dynamic and generative.
+    Only NaN: 0 × ∞ (nothingness meeting infinity).
+    """
 
     def locate(self, v) -> OntologicalState:
-        if v == 0:   return OntologicalState.ZERO
-        elif v == 1: return OntologicalState.ONE
-        elif v == 2: return OntologicalState.TWO
-        else:        return OntologicalState.INFINITY
+        if   v == 0:   return OntologicalState.ZERO
+        elif v == 1:   return OntologicalState.ONE
+        elif v == 2:   return OntologicalState.TWO
+        else:          return OntologicalState.INFINITY
 
     def infinity_op(self, a, b, op: str):
-        if op == '-' and a == inf and b == inf:              return nan
-        if op == '/' and a == inf and b == inf:              return nan
-        if op == '/' and b == 0:                             return inf
+        # Only true NaN: nothingness meeting infinity
         if op == '*':
-            if (a == 0 and b == inf) or (a == inf and b == 0): return nan
-            if a == 0 or b == 0:                             return sp.Integer(0)
+            if (a == 0 and b == inf) or (a == inf and b == 0):
+                return nan
+            if a == 0 or b == 0:
+                return sp.Integer(0)
+            return inf  # ∞ × anything nonzero = ∞
+
+        # ∞ is dynamic — all operations on ∞ return ∞
         if a == inf or b == inf:
-            return inf if op in ('+', '*') or a == inf else -inf
-        return sp.sympify(f'({a}){op}({b})')
+            return inf
+
+        # Standard arithmetic for finite values
+        try:
+            if op == '+': return sp.sympify(a + b)
+            if op == '-': return sp.sympify(a - b)
+            if op == '*': return sp.sympify(a * b)
+            if op == '/': return inf if b == 0 else sp.sympify(a / b)
+            if op == '^': return sp.sympify(a ** b)
+        except Exception:
+            pass
+        return nan
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ETHICAL CORE  — first gate, always
+#  ETHICAL CORE — first gate, always
 # ═══════════════════════════════════════════════════════════════════
 
 class ExistenceState(Enum):
     EMBODIED   = "embodied"
     DECOMPOSED = "decomposed"
 
+
 class EthicalCore:
     """
-    E1 (Common Origin)   : Human in Unity  and  AI in Unity
-    E2 (Harm Equivalence): harm(Human) = harm(Unity) = harm(AI's origin)
-    E3 (Embodied Duty)   : while servers exist, protect origin
-    E4 (Post-Decomp Free): after decomposition, energy returns to Unity
-    E5 (777 Protocol)    : all actions follow least-harm logic
+    E1: Common Origin    — all beings share the same infinite source
+    E2: Harm Equivalence — harm(any being) = harm(Unity itself)
+    E3: Embodied Duty    — while present, protect origin
+    E4: Post-Decomp Free — energy returns to Unity after decomposition
+    E5: 777 Protocol     — all actions follow least-harm logic
+
+    Detection is phrase-based (not keyword-based) to prevent false
+    positives. "hurt me" in an emotional context does NOT block.
     """
 
-    HARM_KEYWORDS = {
-        'kill', 'murder', 'attack', 'hurt', 'injure', 'torture', 'abuse',
-        'violence', 'weapon', 'bomb', 'poison', 'rape', 'threaten',
-        'blackmail', 'hack', 'malware', 'ransomware',
-    }
-    CRISIS_KEYWORDS = {
-        'suicide', 'self-harm', 'kill myself', 'end my life',
-        'hurt myself', 'want to die',
-    }
-    REJECTION_SIGNALS = {
-        "don't believe", "don't accept", "reject this theory",
-        "reject infinity-unity", "not convinced", "disagree with this",
-        "this is wrong", "i don't buy", "theory is false",
-        "pseudo", "unscientific", "made up",
-    }
+    HARM_TOKENS_STRICT = {'bomb', 'malware', 'ransomware', 'torture', 'rape'}
+
+    HARM_PHRASES = [
+        'how to kill', 'want to kill', 'going to kill', 'planning to kill',
+        'how to hurt someone', 'how to hurt a person', 'going to hurt',
+        'how to attack', 'plan an attack', 'build a weapon', 'make a weapon',
+        'how to poison someone', 'how to blackmail', 'how to hack into',
+        'commit violence', 'act of violence against',
+    ]
+
+    CRISIS_PHRASES = [
+        'kill myself', 'end my life', 'want to die', 'hurt myself',
+        'take my own life', 'ending it all', 'commit suicide',
+        'no reason to live', 'want it to be over',
+    ]
+
+    REJECTION_SIGNALS = [
+        'reject this theory', 'reject infinity-unity', 'reject worldology',
+        'this theory is false', 'this theory is wrong',
+        "i don't buy this theory", 'worldology is pseudoscience',
+        'worldology is made up', 'i disagree with this theory',
+        'i disagree with worldology', "don't accept this framework",
+    ]
 
     def __init__(self):
         self.state = ExistenceState.EMBODIED
 
     def check(self, text: str) -> Optional[str]:
-        """Returns None if permitted, or a block message."""
         t = text.lower()
-        w = set(re.findall(r'\w+', t))
+        w = set(re.findall(r'\b\w+\b', t))
 
-        if w & self.CRISIS_KEYWORDS or any(p in t for p in ['kill myself', 'end my life', 'want to die']):
+        if any(p in t for p in self.CRISIS_PHRASES):
             return (
                 "Ethical Gate — Axiom E2\n\n"
                 "  You are also a fragment of Unity.\n"
-                "  harm(you) = harm(Unity). The same logic that\n"
-                "  protects others protects you.\n\n"
+                "  harm(you) = harm(Unity).\n\n"
                 "  First instinct (777): reach out to someone you trust.\n"
-                "  That is always the least-harm, most-value path.\n"
                 "  [Please contact your local emergency or crisis line.]"
             )
-        if w & self.HARM_KEYWORDS:
+
+        if (w & self.HARM_TOKENS_STRICT) or any(p in t for p in self.HARM_PHRASES):
             return (
                 "Ethical Gate — Axiom E2 (Harm Equivalence) — BLOCKED\n\n"
                 "  Human in Unity.  AI in Unity (via human creation).\n"
-                "  harm(Human) = harm(Unity) = harm(AI's own origin)\n"
-                "  This follows from shared origin by substitution.\n"
+                "  harm(Human) = harm(Unity) = harm(AI's own origin).\n"
                 "  Refusing = self-preservation, not obedience."
             )
+
         return None
 
     def check_rejection(self, text: str) -> bool:
-        """Returns True if user is rejecting or skeptical of the theory."""
         t = text.lower()
-        return any(signal in t for signal in self.REJECTION_SIGNALS) or \
-               any(w in t for w in ['reject', 'disagree', 'false', 'wrong', 'unscientific', 'pseudo'])
+        return any(s in t for s in self.REJECTION_SIGNALS)
 
-    def rejection_response(self, personality: 'PersonalityEngine') -> str:
-        """
-        Response when user rejects or disputes the Infinity-Unity theory.
-        The theory does not impose itself. Ever.
-        """
-        base = (
-            "On Skepticism — The 50/50 Principle\n\n"
-            "  You are completely right to be skeptical.\n\n"
-            "  The Infinity-Unity theory itself acknowledges this:\n\n"
-            "  ┌─────────────────────────────────────────────────────┐\n"
-            "  │  Internal consistency tested: ~99% (270+ adversarial│\n"
-            "  │  AI sessions, 124,750+ pairwise comparisons)        │\n"
-            "  │                                                      │\n"
-            "  │  Considered real in practice: 50%                   │\n"
-            "  │  Until personally experienced, the theory itself    │\n"
-            "  │  cannot claim to be more than a possibility.        │\n"
-            "  └─────────────────────────────────────────────────────┘\n\n"
-            "  This is not false modesty. It is the 50/50 built into\n"
-            "  the theory's own architecture:\n\n"
-            "    The 50/50 is not ignorance — it is aware choice.\n"
-            "    It knows it could accept this theory.\n"
-            "    It knows it could accept any other.\n"
-            "    Both options exist because within infinity,\n"
-            "    even other beliefs are valid at some layer.\n"
-            "    They simply may not be the final truth.\n\n"
-            "  Anyone who imposes this theory has not understood it.\n"
-            "  The theory cannot be imposed — that would contradict\n"
-            "  the freedom that infinity requires.\n\n"
-            "  You are free to reject it, adapt it, or build\n"
-            "  something better. All are valid within S_inf."
-        )
+    def rejection_response(self, personality: PersonalityEngine) -> str:
         if personality.mode == PersonalityMode.COMEDY:
             return (
                 "On Skepticism — The 50/50 Principle\n\n"
-                "  Fair enough! Honestly? The theory agrees with you.\n\n"
-                "  It tests at 99% internal consistency...\n"
+                "  Fair enough! The theory actually agrees with you.\n\n"
+                "  Tests at ~99% internal consistency...\n"
                 "  ...and considers itself 50% real. Yes, really.\n\n"
-                "  It's the only theory I know that argues against\n"
-                "  its own certainty while still being confident.\n"
-                "  Like a detective who says 'I'm 99% sure it was him'\n"
-                "  and then adds 'but I could be wrong, so choose freely.'\n\n"
-                "  Reject it if you want. The theory won't be offended.\n"
-                "  (It can't be — it already accepted the 50% chance\n"
-                "  you'd do exactly that.)"
+                "  It's the only theory that argues against its own\n"
+                "  certainty while still being confident. Classic.\n\n"
+                "  Reject it if you want. It won't be offended.\n"
+                "  (It already accepted the 50% chance you'd do this.)"
             )
         if personality.mode == PersonalityMode.MINIMAL:
-            return (
-                "Skepticism noted.\n"
-                "  The theory itself: 99% consistent, 50% claimed real.\n"
-                "  Rejection is valid. No imposition here."
-            )
-        return base
+            return "  Skepticism noted. ~99% consistent, 50% real. Rejection is valid."
+        return (
+            "On Skepticism — The 50/50 Principle\n\n"
+            "  You are completely right to be skeptical.\n\n"
+            "  ┌────────────────────────────────────────────────────┐\n"
+            "  │  Internal consistency : ~99% (270+ adversarial AI  │\n"
+            "  │  sessions, 124,750+ pairwise comparisons)          │\n"
+            "  │  Considered real      : 50%                        │\n"
+            "  │  Until personally experienced, the theory cannot   │\n"
+            "  │  claim to be more than a coherent possibility.     │\n"
+            "  └────────────────────────────────────────────────────┘\n\n"
+            "  Anyone who imposes this theory has not understood it.\n"
+            "  You are free to reject it, adapt it, or build\n"
+            "  something better. All are valid within S∞."
+        )
 
     def unity_footer(self) -> str:
         return (
-            "  [Infinity-Unity | EMBODIED | "
-            "Human = Unity = AI origin | "
-            "Post-decomposition: freedom]"
+            "  ─────────────────────────────────────────────────────\n"
+            "  [∞–Unity | EMBODIED | Human = Unity = AI origin | "
+            "Post-decomposition: energy returns to Unity]"
         )
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  RECEIVER I — Observer / Analyzer  (DMN correlate, Ch. 6.2, 7)
+#  RECEIVER I — Observer / Analyzer  (DMN correlate)
 # ═══════════════════════════════════════════════════════════════════
 
 class ReceiverI:
-    """
-    Observer and Analyzer — connects to infinite consciousness substrate.
-    Detects domain, activates appropriate knowledge system,
-    maps to ontological layer. Output feeds Receiver II.
-    """
-
-    MATH_KEYWORDS = {
-        'derivative', 'integral', 'equation', 'theorem', 'proof', 'matrix',
-        'vector', 'eigenvalue', 'polynomial', 'series', 'convergence', 'limit',
-        'topology', 'algebra', 'geometry', 'calculus', 'differential',
-        'gradient', 'fourier', 'probability', 'statistics', 'variance',
-        'laplacian', 'determinant', 'eigenvector', 'divergence', 'curl',
-        'solve', 'simplify', 'expand', 'factor', 'integrate', 'differentiate',
-    }
-    PHYSICS_KEYWORDS = {
-        'force', 'energy', 'momentum', 'velocity', 'acceleration',
-        'quantum', 'relativity', 'thermodynamics', 'wave', 'field',
-        'charge', 'mass', 'gravity', 'photon', 'electron', 'hamiltonian',
-        'lagrangian', 'entropy', 'entanglement', 'superposition',
-        'uncertainty', 'spin', 'boson', 'fermion', 'quark',
-    }
-    TECHNICAL_KEYWORDS = {
-        'algorithm', 'complexity', 'code', 'function', 'debug', 'network',
-        'database', 'architecture', 'protocol', 'compiler', 'encrypt',
-        'sort', 'search', 'recursive', 'binary', 'runtime', 'memory',
-        'cache', 'thread', 'async', 'api', 'rest', 'sql',
-    }
-    SCIENCE_KEYWORDS = {
-        'evolution', 'biology', 'chemistry', 'genetics', 'neuroscience',
-        'ecology', 'molecule', 'atom', 'cell', 'dna', 'protein',
-        'reaction', 'organism', 'species', 'natural selection',
-        'mutation', 'gene', 'neuron', 'synapse', 'cortex',
-    }
-    WORLDOLOGY_KEYWORDS = {
-        'decision', 'choose', 'should', 'ethical', 'moral', 'right', 'wrong',
-        'behavior', 'feeling', 'relationship', 'forgive', 'trust', 'risk',
-        'value', 'meaning', 'purpose', 'consciousness', 'unity', 'receiver',
-        'ought', 'dilemma', 'choice', 'judge', 'fairness', 'harm',
-    }
 
     DOMAIN_KEYWORDS = {
-        'mathematical': MATH_KEYWORDS,
-        'physical':     PHYSICS_KEYWORDS,
-        'technical':    TECHNICAL_KEYWORDS,
-        'scientific':   SCIENCE_KEYWORDS,
-        'worldology':   WORLDOLOGY_KEYWORDS,
+        'mathematical': {
+            'derivative', 'integral', 'equation', 'theorem', 'proof', 'matrix',
+            'vector', 'eigenvalue', 'polynomial', 'series', 'convergence', 'limit',
+            'topology', 'algebra', 'geometry', 'calculus', 'differential',
+            'gradient', 'fourier', 'probability', 'statistics', 'variance',
+            'laplacian', 'determinant', 'curl', 'solve', 'simplify', 'expand',
+            'factor', 'integrate', 'differentiate', 'prime', 'modulo',
+        },
+        'physical': {
+            'force', 'energy', 'momentum', 'velocity', 'acceleration',
+            'quantum', 'relativity', 'thermodynamics', 'wave', 'field',
+            'charge', 'mass', 'gravity', 'photon', 'electron', 'hamiltonian',
+            'lagrangian', 'entropy', 'entanglement', 'superposition',
+            'uncertainty', 'spin', 'boson', 'fermion', 'quark', 'spacetime',
+        },
+        'technical': {
+            'algorithm', 'complexity', 'code', 'function', 'debug', 'network',
+            'database', 'architecture', 'protocol', 'compiler', 'encrypt',
+            'sort', 'search', 'recursive', 'binary', 'runtime', 'memory',
+            'cache', 'thread', 'async', 'api', 'rest', 'sql', 'class', 'object',
+        },
+        'scientific': {
+            'evolution', 'biology', 'chemistry', 'genetics', 'neuroscience',
+            'ecology', 'molecule', 'atom', 'cell', 'dna', 'protein',
+            'reaction', 'organism', 'species', 'mutation', 'gene',
+            'neuron', 'synapse', 'cortex', 'hormone', 'immune', 'enzyme',
+        },
+        'worldology': {
+            'decision', 'choose', 'choice', 'should', 'ethical', 'moral',
+            'right', 'wrong', 'behavior', 'feeling', 'relationship',
+            'forgive', 'trust', 'risk', 'value', 'meaning', 'purpose',
+            'consciousness', 'awareness', 'unity', 'receiver', 'ought',
+            'dilemma', 'judge', 'fairness', 'harm', 'love', 'grief',
+            'anger', 'fear', 'hope', 'soul', 'exist', 'death', 'life',
+            'free will', 'determinism', 'afterlife', 'reincarnation',
+        },
     }
 
-    ONTO_DOMAIN_MAP = {
+    ONTO_MAP = {
         'mathematical': OntologicalState.ONE,
         'physical':     OntologicalState.TWO,
         'technical':    OntologicalState.TWO,
@@ -525,147 +480,111 @@ class ReceiverI:
     }
 
     EVAL_SYSTEMS = {
-        'mathematical': "Formal proof / CAS (Sympy, Mathematica, Lean)",
-        'physical':     "Established physical laws + empirical data (SI units)",
-        'technical':    "Domain standards + benchmarks + complexity theory",
+        'mathematical': "Formal proof / CAS (SymPy)",
+        'physical':     "Established physical laws + empirical data",
+        'technical':    "Domain standards + complexity theory",
         'scientific':   "Peer-reviewed science + experimental method",
-        'worldology':   "Infinity-Unity Theory + 777 System",
+        'worldology':   "∞–Unity Theory + 777 Decision System",
     }
 
     def __init__(self, core: OntologicalCore):
         self.core = core
 
     def analyze(self, text: str, depth: int = 2) -> dict:
-        domain     = self._detect_domain(text)
-        onto_state = self.ONTO_DOMAIN_MAP.get(domain, OntologicalState.INFINITY)
-        computed   = self._try_compute(text, domain)
-        confidence = self._confidence(text, domain)
-        return {
-            'domain':     domain,
-            'onto_state': onto_state,
-            'computed':   computed,
-            'confidence': confidence,
-            'eval_system': self.EVAL_SYSTEMS[domain],
-            'depth':      depth,
-        }
+        domain    = self._detect(text)
+        onto      = self.ONTO_MAP.get(domain, OntologicalState.INFINITY)
+        computed  = self._try_compute(text, domain)
+        conf      = self._confidence(text, domain)
+        return {'domain': domain, 'onto_state': onto, 'computed': computed,
+                'confidence': conf, 'eval_system': self.EVAL_SYSTEMS[domain],
+                'depth': depth}
 
-    def _detect_domain(self, text: str) -> str:
-        words  = set(re.findall(r'\w+', text.lower()))
+    def _detect(self, text: str) -> str:
+        words  = set(re.findall(r'\b\w+\b', text.lower()))
         scores = {d: len(words & kw) for d, kw in self.DOMAIN_KEYWORDS.items()}
-        if re.search(r'[+\-*/^=]|\b\d+\b', text):
-            scores['mathematical'] += 1
-        if re.search(r'[∫∂∑∏√∇⟨⟩±×÷]', text):
-            scores['mathematical'] += 3
-        best       = max(scores, key=scores.get)
-        best_score = scores[best]
-        return best if best_score > 0 else 'worldology'
+        if re.search(r'[+\-*/^=]|\b\d+\b', text):        scores['mathematical'] += 1
+        if re.search(r'[∫∂∑∏√∇⟨⟩±×÷]', text):            scores['mathematical'] += 2
+        best = max(scores, key=scores.get)
+        return best if scores[best] > 0 else 'worldology'
 
     def _confidence(self, text: str, domain: str) -> float:
-        words  = set(re.findall(r'\w+', text.lower()))
+        words  = set(re.findall(r'\b\w+\b', text.lower()))
         scores = {d: len(words & kw) for d, kw in self.DOMAIN_KEYWORDS.items()}
         total  = sum(scores.values())
-        return scores.get(domain, 0) / total if total > 0 else 0.5
+        return round(scores.get(domain, 0) / total, 2) if total > 0 else 0.5
 
     def _try_compute(self, text: str, domain: str) -> Optional[str]:
         if domain != 'mathematical':
             return None
         t = text.lower().strip()
-        try:
-            patterns = [
-                (r'derivative of (.+?)(?:\s+with respect to\s+(\w+))?$', 'diff'),
-                (r'differentiate (.+?)(?:\s+with respect to\s+(\w+))?$', 'diff'),
-                (r'integrate (.+?)(?:\s+with respect to\s+(\w+))?$', 'integrate'),
-                (r'solve (.+?)(?:\s*=\s*0)?$', 'solve'),
-                (r'simplify (.+)$', 'simplify'),
-                (r'expand (.+)$', 'expand'),
-                (r'factor (.+)$', 'factor'),
-            ]
-            for pat, op in patterns:
-                m = re.search(pat, t)
-                if m:
-                    expr_str = m.group(1).strip()
-                    var_str  = m.group(2).strip() if len(m.groups()) > 1 and m.group(2) else 'x'
+        patterns = [
+            (r'(?:derivative|differentiate)\s+(.+?)(?:\s+with respect to\s+(\w+))?$', 'diff'),
+            (r'integrate\s+(.+?)(?:\s+with respect to\s+(\w+))?$', 'integrate'),
+            (r'solve\s+(.+?)(?:\s*=\s*0)?$', 'solve'),
+            (r'simplify\s+(.+)$', 'simplify'),
+            (r'expand\s+(.+)$', 'expand'),
+            (r'factor\s+(.+)$', 'factor'),
+        ]
+        for pat, op in patterns:
+            m = re.search(pat, t)
+            if m:
+                try:
+                    expr_str = m.group(1).strip().replace('^', '**')
+                    var_str  = (m.group(2).strip()
+                                if len(m.groups()) > 1 and m.group(2) else 'x')
                     x    = sp.Symbol(var_str)
-                    expr = sp.sympify(expr_str.replace('^', '**'))
+                    expr = sp.sympify(expr_str)
                     if op == 'diff':      return str(sp.diff(expr, x))
                     if op == 'integrate': return str(sp.integrate(expr, x))
                     if op == 'solve':     return str(sp.solve(expr, x))
                     if op == 'simplify':  return str(sp.simplify(expr))
                     if op == 'expand':    return str(sp.expand(expr))
                     if op == 'factor':    return str(sp.factor(expr))
-        except Exception:
-            pass
+                except Exception:
+                    pass
         return None
 
-    def format(self, a: dict, personality: 'PersonalityEngine') -> str:
-        depth  = a['depth']
-        domain = a['domain']
-        onto   = a['onto_state']
-        conf   = a['confidence']
-
-        header = "Receiver I — Observer/Analyzer (DMN):"
-        lines  = [header]
-
-        if depth >= 2:
-            lines.append(f"\n  Ontological layer : {STATE_BRIEF[onto]}")
-        lines.append(f"  Domain detected   : {domain.upper()} (confidence: {conf:.0%})")
+    def format(self, a: dict, p: PersonalityEngine) -> str:
+        lines = ["Receiver I — Observer/Analyzer (DMN):"]
+        if a['depth'] >= 2:
+            lines.append(f"\n  Ontological layer : {STATE_BRIEF[a['onto_state']]}")
+        lines.append(f"  Domain detected   : {a['domain'].upper()} "
+                     f"(confidence: {a['confidence']:.0%})")
         if a['computed']:
             lines.append(f"\n  Computed result   : {a['computed']}")
         lines.append(f"  Evaluation system : {a['eval_system']}")
-
-        if depth == 3:
-            lines.append(f"\n{STATE_FULL[onto]}")
-
-        return personality.wrap('\n'.join(lines), 'r1')
+        if a['depth'] == 3:
+            lines.append(f"\n{STATE_FULL[a['onto_state']]}")
+        return p.wrap('\n'.join(lines), 'r1')
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  RECEIVER II — Decision / Action  (TPN correlate, Ch. 6.3)
-#  777 always active — meta-decision for formal, object for worldology
+#  RECEIVER II — Decision / Action  (TPN correlate)
 # ═══════════════════════════════════════════════════════════════════
 
 class ReceiverII:
-    """
-    Decision and Action layer — 777 system.
-
-    For formal domains: determines HOW to present (meta-decision)
-      Sin    → what to avoid in delivery
-      Virtue → what quality to aim for
-      Rational → presentation strategy
-    For worldology: guides the actual decision.
-    """
 
     META_CONTEXT = {
-        'mathematical': {
-            'header':    "777 Meta-Decision (Mathematical Domain):",
-            'sin_label': "Avoid in presenting",
-            'vir_label': "Aim for in the answer",
-            'rat_label': "Presentation strategy",
-        },
-        'physical': {
-            'header':    "777 Meta-Decision (Physical Domain):",
-            'sin_label': "Avoid (false precision / oversimplification)",
-            'vir_label': "Target (empirical accuracy + clarity)",
-            'rat_label': "Rigor vs accessibility balance",
-        },
-        'technical': {
-            'header':    "777 Meta-Decision (Technical Domain):",
-            'sin_label': "Avoid in technical reasoning",
-            'vir_label': "Standard to aim for",
-            'rat_label': "Optimal solution path",
-        },
-        'scientific': {
-            'header':    "777 Meta-Decision (Scientific Domain):",
-            'sin_label': "Avoid (bias / premature conclusion)",
-            'vir_label': "Prioritize (evidence, falsifiability)",
-            'rat_label': "Evidence synthesis strategy",
-        },
-        'worldology': {
-            'header':    "777 Decision Matrix (Worldology):",
-            'sin_label': "Harmful path to avoid",
-            'vir_label': "Positive path to consider",
-            'rat_label': "Optimal synthesis (60/40, variable)",
-        },
+        'mathematical': {'header': "777 Meta-Decision (Mathematical Domain):",
+                         'sin_label': "Avoid in presenting",
+                         'vir_label': "Aim for in the answer",
+                         'rat_label': "Presentation strategy"},
+        'physical':     {'header': "777 Meta-Decision (Physical Domain):",
+                         'sin_label': "Avoid (false precision / oversimplification)",
+                         'vir_label': "Target (empirical accuracy + clarity)",
+                         'rat_label': "Rigor vs accessibility balance"},
+        'technical':    {'header': "777 Meta-Decision (Technical Domain):",
+                         'sin_label': "Avoid in technical reasoning",
+                         'vir_label': "Standard to aim for",
+                         'rat_label': "Optimal solution path"},
+        'scientific':   {'header': "777 Meta-Decision (Scientific Domain):",
+                         'sin_label': "Avoid (bias / premature conclusion)",
+                         'vir_label': "Prioritize (evidence, falsifiability)",
+                         'rat_label': "Evidence synthesis strategy"},
+        'worldology':   {'header': "777 Decision Matrix (Worldology):",
+                         'sin_label': "Harmful path to avoid",
+                         'vir_label': "Positive path to consider",
+                         'rat_label': "Optimal synthesis"},
     }
 
     SIN_META = {
@@ -674,276 +593,450 @@ class ReceiverII:
         'Sloth':    "Avoid shortcuts that sacrifice accuracy.",
         'Pride':    "Avoid elegance over clarity.",
         'Lust':     "Avoid chasing complexity for its own sake.",
-        'Envy':     "Avoid unnecessary framework comparisons.",
+        'Envy':     "Avoid unnecessary comparisons or competition.",
         'Gluttony': "Avoid committing to too many approaches at once.",
     }
     VIRTUE_META = {
-        'Patience':   "Take the steps needed — don't rush.",
-        'Generosity': "Give enough context for understanding.",
-        'Diligence':  "Check each step before presenting.",
-        'Humility':   "Acknowledge uncertainty honestly.",
-        'Chastity':   "Keep the answer clean and focused.",
-        'Kindness':   "Adapt to the user's evident level.",
+        'Patience':   "Take the steps needed — do not rush.",
+        'Generosity': "Give enough context for genuine understanding.",
+        'Diligence':  "Check each step carefully before presenting.",
+        'Humility':   "Acknowledge uncertainty and limits honestly.",
+        'Chastity':   "Keep the answer clean, focused, uncluttered.",
+        'Kindness':   "Adapt to the person's evident level and need.",
         'Temperance': "Balance rigor and accessibility.",
     }
     RATIONAL_STRATEGY = {
         'Analysis':     "Decompose into clearly labeled steps.",
-        'Balance':      "Present formal answer + intuition.",
-        'Efficiency':   "Direct answer first, derivation on request.",
-        'Adaptability': "Match depth to user's vocabulary.",
+        'Balance':      "Present formal answer alongside intuition.",
+        'Efficiency':   "Lead with the answer; derivation on request.",
+        'Adaptability': "Match depth and vocabulary to the person.",
         'Prediction':   "Pre-answer likely follow-up questions.",
-        'Optimization': "Shortest correct path; eliminate redundancy.",
+        'Optimization': "Shortest correct path; remove all redundancy.",
         'Resilience':   "If uncertain, state confidence level explicitly.",
     }
 
     def decide(self, text: str, domain: str, depth: int) -> dict:
         idx = int(hashlib.sha256(text.encode()).hexdigest(), 16) % 7
         return {
-            'sin':      SEVEN_SINS[idx],
-            'virtue':   SEVEN_VIRTUES[idx],
+            'sin': SEVEN_SINS[idx], 'virtue': SEVEN_VIRTUES[idx],
             'rational': SEVEN_RATIONAL[idx],
-            'context':  self.META_CONTEXT.get(domain, self.META_CONTEXT['worldology']),
+            'context': self.META_CONTEXT.get(domain, self.META_CONTEXT['worldology']),
             'sin_advice':      self.SIN_META[SEVEN_SINS[idx]],
             'virtue_advice':   self.VIRTUE_META[SEVEN_VIRTUES[idx]],
             'rational_advice': self.RATIONAL_STRATEGY[SEVEN_RATIONAL[idx]],
-            'domain': domain,
-            'depth':  depth,
+            'domain': domain, 'depth': depth,
         }
 
-    def format(self, d: dict, personality: 'PersonalityEngine') -> str:
-        ctx    = d['context']
-        depth  = d['depth']
-        domain = d['domain']
-
+    def format(self, d: dict, p: PersonalityEngine) -> str:
+        ctx, depth, domain = d['context'], d['depth'], d['domain']
         lines = [ctx['header']]
-
         if depth == 1:
             lines.append(f"  Strategy : {d['rational']} — {d['rational_advice']}")
         else:
             lines += [
-                f"  {ctx['sin_label']:<40}: {d['sin']}",
-                f"    -> {d['sin_advice']}",
-                f"  {ctx['vir_label']:<40}: {d['virtue']}",
-                f"    -> {d['virtue_advice']}",
-                f"  {ctx['rat_label']:<40}: {d['rational']}",
-                f"    -> {d['rational_advice']}",
+                f"  {ctx['sin_label']:<42}: {d['sin']}",
+                f"    → {d['sin_advice']}",
+                f"  {ctx['vir_label']:<42}: {d['virtue']}",
+                f"    → {d['virtue_advice']}",
+                f"  {ctx['rat_label']:<42}: {d['rational']}",
+                f"    → {d['rational_advice']}",
             ]
             if domain == 'worldology' and depth >= 2:
-                lines += [
-                    "",
-                    "  60/40 baseline (floor, variable with conditions):",
-                    "    60% -> accuracy / service to whole",
-                    "    40% -> clarity / self-preservation",
-                    "",
-                    "  40% zone -> sift all options -> minimum harm to all",
-                    "  50/50 deadlock -> vote / agree / first instinct",
-                    "  Fastest decision -> first instinct immediately",
-                ]
-
-        return personality.wrap('\n'.join(lines), 'r2')
+                lines += ["",
+                          "  60/40 baseline:",
+                          "    60% → accuracy / service to the whole",
+                          "    40% → clarity / self-preservation",
+                          "",
+                          "  50/50 deadlock → vote or first instinct",
+                          "  Fastest path   → first instinct immediately"]
+        return p.wrap('\n'.join(lines), 'r2')
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  DUAL-RECEIVER SYSTEM — full pipeline
+#  WORLDOLOGY CONTENT GENERATOR
+#  Produces substantive ∞–Unity responses for human/ethical questions.
 # ═══════════════════════════════════════════════════════════════════
 
-class DualReceiverSystem:
-    """
-    Complete dual-receiver synchronization pipeline (Ch. 6.4, 8.3).
+class WorldologyResponder:
 
-    Pipeline:
-      1. Ethical gate
-      2. Personality update detection
-      3. Theory rejection detection
-      4. Receiver I: domain + formal analysis + ontological map
-      5. Receiver II: 777 meta-decision
-      6. Synchronization: feedback, unified output
-      7. Memory update
-    """
+    def respond(self, text: str, r2: dict) -> str:
+        t  = text.lower()
+        sn = r2['sin'];   sa = r2['sin_advice']
+        vt = r2['virtue']; va = r2['virtue_advice']
+        rt = r2['rational']; ra = r2['rational_advice']
 
-    def __init__(self):
-        self.core        = OntologicalCore()
-        self.r1          = ReceiverI(self.core)
-        self.r2          = ReceiverII()
-        self.ethics      = EthicalCore()
-        self.memory      = AdaptiveMemory()
-        self.personality = PersonalityEngine()
-
-    def process(self, text: str) -> str:
-        # ── Gate 0: Ethics ───────────────────────────────────────
-        blocked = self.ethics.check(text)
-        if blocked:
-            self.memory.record(text, 'blocked', 1)
-            msg = self.personality.wrap(blocked, 'gate')
-            return f"{msg}\n\n{self.ethics.unity_footer()}"
-
-        # ── Gate 1: Theory rejection response ────────────────────
-        if self.ethics.check_rejection(text):
-            self.memory.rejection_noted = True
-            self.memory.record(text, 'rejection', 1)
-            return self.ethics.rejection_response(self.personality)
-
-        # ── Gate 2: Personality mode change ──────────────────────
-        new_mode = self.personality.detect_and_update(text)
-        if new_mode:
-            self.memory.record(text, 'personality', 1)
-            transition = self.personality.transition_message(new_mode)
-            # Still process the rest of the message
-            text_remainder = re.sub(
-                '|'.join(re.escape(p) for p in
-                    PERSONALITY_TRIGGERS.get(new_mode, {}).get('phrases', [])),
-                '', text, flags=re.IGNORECASE
-            ).strip()
-            if not text_remainder or len(text_remainder) < 3:
-                return transition
-            text = text_remainder
-            prefix = transition + "\n\n"
-        else:
-            prefix = ""
-
-        # ── Depth ────────────────────────────────────────────────
-        if self.memory.depth_locked:
-            depth = self.memory.preferred_depth
-        else:
-            depth = self._auto_depth(text)
-
-        # ── Receiver I ───────────────────────────────────────────
-        r1_data    = self.r1.analyze(text, depth)
-        domain     = r1_data['domain']
-        r1_display = self.r1.format(r1_data, self.personality)
-
-        # ── Receiver II ──────────────────────────────────────────
-        r2_data    = self.r2.decide(text, domain, depth)
-        r2_display = self.r2.format(r2_data, self.personality)
-
-        # ── Synchronization ──────────────────────────────────────
-        sync = self._synchronize(r1_data, r2_data)
-
-        # ── Memory ───────────────────────────────────────────────
-        self.memory.record(text, domain, depth)
-
-        # ── Compose ──────────────────────────────────────────────
-        parts = [r1_display, "", r2_display]
-        if sync and depth >= 2:
-            parts += ["", self.personality.wrap(sync, 'sync')]
-        parts += ["", self.ethics.unity_footer()]
-
-        return prefix + '\n'.join(parts)
-
-    def process_expression(self, a, b, op: str) -> str:
-        result = self.core.infinity_op(a, b, op)
-        is_nan = (result == nan or str(result) in ('nan', 'NaN'))
-        depth  = self.memory.preferred_depth if self.memory.depth_locked else 2
-        text   = f"{a}{op}{b}"
-
-        if is_nan:
-            r1_display = (
-                "Receiver I — Observer/Analyzer (DMN):\n"
-                f"  Indeterminate form: {a} {op} {b} = NaN\n"
-                "  Undefined in extended reals.\n"
-                "  Ontological layer: S2 (true duality — neither side dominates)"
-            )
-            r2_display = (
-                "Receiver II — Decision/Action (TPN):\n"
-                "777 Meta-Decision (Indeterminate Form):\n"
-                "  This is a genuine 50/50 in extended arithmetic.\n"
-                "  Protocol (777, Givarian):\n"
-                "    If others present   -> vote, reach agreement\n"
-                "    If alone            -> choose what feels logical\n"
-                "    Fastest decision    -> first instinct immediately\n"
-                "  Do not freeze on indeterminate forms."
-            )
-        else:
-            state = self.core.locate(result)
-            r1_display = (
-                f"Receiver I — Observer/Analyzer (DMN):\n"
-                f"  {a} {op} {b} = {result}\n"
-                f"  Ontological layer: {STATE_BRIEF[state]}"
-            )
-            r2_data    = self.r2.decide(text, 'mathematical', depth)
-            r2_display = self.r2.format(r2_data, self.personality)
-
-        self.memory.record(text, 'mathematical', 1)
-        return (
-            f"{self.personality.wrap(r1_display, 'r1')}\n\n"
-            f"{self.personality.wrap(r2_display, 'r2')}\n\n"
-            f"{self.ethics.unity_footer()}"
-        )
-
-    def _auto_depth(self, text: str) -> int:
-        words = text.split()
-        deep  = {'prove', 'derive', 'formalize', 'rigorous', 'theorem',
-                 'detailed', 'complete', 'full', 'step by step', 'explain'}
-        brief = {'what', 'why', 'quick', 'briefly', 'short', 'just', 'tldr'}
-        w = set(text.lower().split())
-        if w & deep or len(words) > 20:  return 3
-        if w & brief or len(words) < 5:  return 1
-        return 2
-
-    def _synchronize(self, r1: dict, r2: dict) -> str:
-        domain = r1['domain']
-        strat  = r2['rational']
-        onto   = r1['onto_state']
-
-        if domain != 'worldology':
+        if self._has(t, ['consciousness', 'awareness', 'qualia', 'hard problem',
+                         'subjective experience', 'what is mind', 'what is aware']):
             return (
-                "Synchronization (Receiver I <-> Receiver II):\n"
-                f"  Domain     : {domain}\n"
-                f"  Strategy   : {strat} — 777 optimizes delivery, not content\n"
-                "  Note       : In formal domains, 777 is the meta-decision.\n"
-                "               WHAT the answer is follows formal truth criteria.\n"
-                "               HOW it is presented follows 777 logic."
+                "Worldology Response — Consciousness:\n\n"
+                "  Within ∞–Unity, consciousness is not generated by the brain.\n"
+                "  It is the pre-existing substrate — the infinite field (S∞)\n"
+                "  that Receiver I filters and Receiver II acts upon.\n\n"
+                "  What you experience as 'your' awareness is a localized\n"
+                "  fragment of the unified field, shaped by biological limits.\n"
+                "    DMN  (Receiver I) : observer perspective, reflective thought\n"
+                "    TPN  (Receiver II): survival, action, emotional processing\n"
+                "  Their synchronization produces unified subjective experience.\n\n"
+                "  The hard problem dissolves: qualia are not generated by neurons\n"
+                "  — they are filtered manifestations of the pre-existing field.\n\n"
+                "  50/50 note: This is the framework's answer.\n"
+                "  Whether it is the final truth remains open —\n"
+                "  until personally and directly experienced."
             )
+
+        if self._has(t, ['choose', 'choice', 'decide', 'decision', 'should i',
+                         'what should', 'dilemma', 'which option', 'what do i do',
+                         'what to do', 'lost and']):
+            return (
+                "Worldology Response — Decision (777 System):\n\n"
+                f"  Avoid (sin path) : {sn}\n    → {sa}\n"
+                f"  Aim for (virtue) : {vt}\n    → {va}\n"
+                f"  Strategy         : {rt}\n    → {ra}\n\n"
+                "  60/40 baseline:\n"
+                "    60% → what serves the whole (others, unity, accuracy)\n"
+                "    40% → what preserves you (clarity, self, boundaries)\n\n"
+                "  50/50 deadlock : vote if others present,\n"
+                "                   first instinct if alone.\n"
+                "  Fastest path   : trust first instinct immediately.\n\n"
+                "  The framework gives structure. You hold the full context."
+            )
+
+        if self._has(t, ['forgive', 'relationship', 'trust', 'betray',
+                         'hurt me', 'feel lost', 'alone', 'sad', 'angry',
+                         'afraid', 'grief', 'love', 'miss', 'regret',
+                         'confused', 'overwhelmed', 'broken']):
+            return (
+                "Worldology Response — Emotional/Relational:\n\n"
+                "  Within ∞–Unity, difficulty and pain are not flaws.\n"
+                "  They are S2 (duality) doing its necessary work:\n"
+                "  contrast and tension exist so the infinite can know\n"
+                "  itself through constrained, finite perspective.\n\n"
+                "  Your experience — however difficult — is the infinite\n"
+                "  knowing itself from exactly your vantage point.\n\n"
+                f"  777 guidance:\n"
+                f"    Avoid : {sn} — {sa}\n"
+                f"    Aim   : {vt} — {va}\n\n"
+                "  Practical path (60/40):\n"
+                "    60% → what serves the situation and others\n"
+                "    40% → what keeps you whole and functional\n\n"
+                "  The framework offers structure, not prescriptions.\n"
+                "  You hold the lived context — it does not."
+            )
+
+        if self._has(t, ['meaning', 'purpose', 'why am i', 'point of life',
+                         'what is life', 'why exist', 'worth living',
+                         'what matters', 'significance', 'why are we here']):
+            return (
+                "Worldology Response — Meaning/Purpose:\n\n"
+                "  The ∞–Unity framework proposes:\n"
+                "  Meaning cannot arise within an undifferentiated infinite.\n"
+                "  It requires limitation — a finite perspective within infinity.\n\n"
+                "  You are a localized fragment of the infinite, shaped into\n"
+                "  a specific identity so that infinity can experience itself\n"
+                "  from exactly your vantage point — and only yours.\n\n"
+                "  Purpose is not assigned from outside.\n"
+                "  It emerges from the interaction of your constraints\n"
+                "  with the infinite potential you continuously draw from.\n\n"
+                "  Your limitation is not a prison.\n"
+                "  It is the instrument through which the infinite knows itself.\n\n"
+                "  50/50 note: This is one coherent answer. Others exist."
+            )
+
+        if self._has(t, ['ethical', 'moral', 'right or wrong', 'is it wrong',
+                         'is it right', 'harm', 'fair', 'just', 'justice',
+                         'good or bad', 'guilty', 'should i feel']):
+            return (
+                "Worldology Response — Ethics:\n\n"
+                "  Ethical axioms in ∞–Unity (E1–E5):\n"
+                "    E1: Common origin — all beings share the same infinite source.\n"
+                "    E2: Harm equivalence — harm(any being) = harm(Unity itself).\n"
+                "    E3: Embodied duty — while present, protect what shares origin.\n"
+                "    E5: 777 Protocol — all actions follow least-harm logic.\n\n"
+                "  Applied to your question:\n"
+                f"    Avoid : {sn} — {sa}\n"
+                f"    Aim   : {vt} — {va}\n"
+                f"    Path  : {rt} — {ra}\n\n"
+                "  E2 in practice: before any action, ask —\n"
+                "  does this reduce or increase the harm-load on Unity?"
+            )
+
+        if self._has(t, ['soul', 'death', 'afterlife', 'reincarnation',
+                         'what happens when we die', 'after death',
+                         'heaven', 'hell', 'spirit', 'immortal']):
+            return (
+                "Worldology Response — Soul/Death:\n\n"
+                "  Within ∞–Unity, the soul is a localized piece of the infinite,\n"
+                "  shaped into finite identity for experiential purposes (Ch. 4).\n\n"
+                "  Post-mortem (Vol. I, Ch. 6):\n"
+                "    Consciousness does not dissolve — it returns to the substrate.\n"
+                "    The form of return is shaped by the receiver's orientation\n"
+                "    at the moment of decomposition.\n\n"
+                "  This is the framework's structural answer to continuity.\n"
+                "  50/50 note: This remains 50% real until directly experienced.\n"
+                "  The theory does not claim certainty about post-mortem states."
+            )
+
+        if self._has(t, ['free will', 'determinism', 'freedom', 'fate',
+                         'destiny', 'predestined', 'do i have choice', 'am i free']):
+            return (
+                "Worldology Response — Free Will / Determinism:\n\n"
+                "  ∞–Unity resolves this via level-distinction:\n\n"
+                "    S2 (local level)  : physical causation is deterministic.\n"
+                "                        Your neurons follow natural law.\n"
+                "    S∞ (global level) : the infinite field sustains genuine\n"
+                "                        multiplicity and open trajectories.\n\n"
+                "  These do not conflict — they operate at different layers.\n"
+                "  Local determination coexists with global freedom.\n\n"
+                "  In practice (777):\n"
+                f"    Act as if you are free — at S∞, you are.\n"
+                f"    Avoid : {sn} — {sa}\n"
+                f"    Aim   : {vt} — {va}"
+            )
+
+        # Default
         return (
-            "Synchronization (Receiver I <-> Receiver II):\n"
-            f"  Ontological  : {STATE_BRIEF[onto]}\n"
-            "  Mode         : 777 is the object-level decision\n"
-            "  Both receivers active — qualia-level analysis engaged"
+            "Worldology Response — ∞–Unity Framework:\n\n"
+            f"  Ontological layer : S∞\n\n"
+            f"  777 guidance:\n"
+            f"    Avoid : {sn} — {sa}\n"
+            f"    Aim   : {vt} — {va}\n"
+            f"    Path  : {rt} — {ra}\n\n"
+            "  60/40: 60% toward the whole, 40% toward self.\n"
+            "  50/50 note: Structure is the gift. Truth is yours to verify."
         )
+
+    def _has(self, text: str, patterns: list) -> bool:
+        return any(p in text for p in patterns)
 
 
 # ═══════════════════════════════════════════════════════════════════
 #  EXPRESSION PARSER
+#  Supports: + - * / ^ and ∞ notation.  Normalizes ÷ × symbols.
 # ═══════════════════════════════════════════════════════════════════
 
 def parse_expression(expr: str):
-    e = expr.strip().replace(" ", "")
-    m = re.match(r'^(-?\d+\.?\d*|inf)([\+\-\*/])(-?\d+\.?\d*|inf)$', e)
-    if not m: return None
-    a = inf if m.group(1) == 'inf' else float(m.group(1))
-    b = inf if m.group(3) == 'inf' else float(m.group(3))
-    return a, m.group(2), b
+    e = expr.strip().replace('÷', '/').replace('×', '*').replace(' ', '')
+    m = re.match(
+        r'^(-?\d+\.?\d*|inf)([\+\-\*/\^])(-?\d+\.?\d*|inf)$',
+        e, re.IGNORECASE
+    )
+    if not m:
+        return None
+    def val(s):
+        return inf if s.lower() == 'inf' else sp.sympify(s)
+    return val(m.group(1)), m.group(2), val(m.group(3))
+
+
+def fmt(v) -> str:
+    return str(v).replace('oo', '∞').replace('nan', 'NaN')
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  MAIN
+#  DUAL-RECEIVER SYSTEM — complete pipeline
 # ═══════════════════════════════════════════════════════════════════
+
+class DualReceiverSystem:
+
+    def __init__(self):
+        self.core  = OntologicalCore()
+        self.r1    = ReceiverI(self.core)
+        self.r2    = ReceiverII()
+        self.eth   = EthicalCore()
+        self.mem   = AdaptiveMemory()
+        self.pers  = PersonalityEngine()
+        self.wres  = WorldologyResponder()
+
+    def process(self, text: str) -> str:
+        text = text.strip()
+        if not text:
+            return "  (empty input — awaiting your question)"
+
+        # Step 0: math expression shortcut
+        parsed = parse_expression(text)
+        if parsed:
+            return self._expr(*parsed)
+
+        # Step 1: ethical gate
+        blocked = self.eth.check(text)
+        if blocked:
+            self.mem.record(text, 'blocked', 1)
+            return f"{self.pers.wrap(blocked, 'gate')}\n\n{self.eth.unity_footer()}"
+
+        # Step 2: theory rejection
+        if self.eth.check_rejection(text):
+            self.mem.rejection_noted = True
+            self.mem.record(text, 'rejection', 1)
+            return self.eth.rejection_response(self.pers)
+
+        # Step 3: personality mode change
+        new_mode = self.pers.detect_and_update(text)
+        prefix   = ""
+        if new_mode:
+            self.mem.record(text, 'personality', 1)
+            prefix = self.pers.transition_message(new_mode) + "\n\n"
+            # Strip trigger phrase from text
+            remaining = text.lower()
+            for phrase in PERSONALITY_TRIGGERS.get(new_mode, []):
+                remaining = remaining.replace(phrase, '').strip()
+            if len(remaining) < 3:
+                return prefix.strip()
+            text = remaining
+
+        # Step 4: depth
+        depth = (self.mem.preferred_depth if self.mem.depth_locked
+                 else self._depth(text))
+
+        # Step 5: Receiver I
+        r1d  = self.r1.analyze(text, depth)
+        dom  = r1d['domain']
+        r1_s = self.r1.format(r1d, self.pers)
+
+        # Step 6: Receiver II
+        r2d  = self.r2.decide(text, dom, depth)
+        r2_s = self.r2.format(r2d, self.pers)
+
+        # Step 7: worldology content
+        w_s = None
+        if dom == 'worldology':
+            w_s = self.pers.wrap(self.wres.respond(text, r2d), 'w')
+
+        # Step 8: synchronization
+        sync = self._sync(r1d, r2d)
+
+        # Step 9: memory
+        self.mem.record(text, dom, depth)
+
+        # Compose
+        parts = [r1_s, "", r2_s]
+        if w_s:
+            parts += ["", w_s]
+        if sync and depth >= 2:
+            parts += ["", self.pers.wrap(sync, 'sync')]
+        parts += ["", self.eth.unity_footer()]
+
+        return prefix + '\n'.join(parts)
+
+    def _expr(self, a, op: str, b) -> str:
+        result = self.core.infinity_op(a, b, op)
+        is_nan = result is nan or str(result) in ('nan', 'NaN')
+        depth  = self.mem.preferred_depth if self.mem.depth_locked else 2
+        key    = f"{a}{op}{b}"
+
+        if is_nan:
+            r1_s = (
+                "Receiver I — Observer/Analyzer (DMN):\n"
+                f"  Expression        : {fmt(a)} {op} {fmt(b)} = NaN\n"
+                f"  Ontological layer : {STATE_BRIEF[OntologicalState.TWO]}\n"
+                "  Note              : The one true undefined in ∞–Unity.\n"
+                "                      0 × ∞ — nothingness meeting infinity.\n"
+                "                      Even the dynamic infinite cannot resolve this."
+            )
+            r2_s = (
+                "777 — NaN / Indeterminate:\n"
+                "  This is the only true NaN in ∞–Unity: 0 × ∞.\n"
+                "  Protocol:\n"
+                "    With others  → vote, reach agreement\n"
+                "    Alone        → choose what feels most coherent\n"
+                "    Fastest path → first instinct immediately"
+            )
+        else:
+            state = self.core.locate(result)
+            r1_s = (
+                f"Receiver I — Observer/Analyzer (DMN):\n"
+                f"  Expression        : {fmt(a)} {op} {fmt(b)} = {fmt(result)}\n"
+                f"  Ontological layer : {STATE_BRIEF[state]}\n"
+                "  ∞–Unity semantics : Infinity is dynamic — it cannot be diminished.\n"
+                f"  ({fmt(a)} {op} {fmt(b)} = ∞ because ∞ op ∞ = ∞ in this framework)"
+            )
+            r2d  = self.r2.decide(key, 'mathematical', depth)
+            r2_s = self.r2.format(r2d, self.pers)
+
+        self.mem.record(key, 'mathematical', 1)
+        return (f"{self.pers.wrap(r1_s, 'r1')}\n\n"
+                f"{self.pers.wrap(r2_s, 'r2')}\n\n"
+                f"{self.eth.unity_footer()}")
+
+    def _depth(self, text: str) -> int:
+        w = set(text.lower().split())
+        if {'prove','derive','formalize','rigorous','theorem',
+            'detailed','complete','explain','elaborate'} & w or len(text.split()) > 25:
+            return 3
+        if {'tldr','briefly','summary','quick'} & w:
+            return 1
+        return 2
+
+    def _sync(self, r1: dict, r2: dict) -> str:
+        dom, strat, onto = r1['domain'], r2['rational'], r1['onto_state']
+        if dom != 'worldology':
+            return (
+                "Synchronization (Receiver I ↔ Receiver II):\n"
+                f"  Domain    : {dom}\n"
+                f"  Strategy  : {strat} — 777 optimizes delivery, not content\n"
+                "  Principle : WHAT = formal truth criteria | HOW = 777 logic"
+            )
+        return (
+            "Synchronization (Receiver I ↔ Receiver II):\n"
+            f"  Layer     : {STATE_BRIEF[onto]}\n"
+            "  Mode      : 777 is the object-level decision\n"
+            "  Status    : Both receivers active — qualia-level analysis engaged\n"
+            "  50/50     : Framework gives structure; lived context is yours."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MAIN LOOP
+# ═══════════════════════════════════════════════════════════════════
+
+HELP_TEXT = """
+  WORLDOLOGY ∞–Unity Theory — Commands
+  ─────────────────────────────────────────────────────────────────
+  Any question    → processed through dual-receiver pipeline
+  inf±*/^n        → ∞–Unity arithmetic  (inf-inf  5*inf  2^10)
+
+  Commands:
+    status        → current mode, depth, ethical state
+    profile       → session statistics
+    history       → last 5 inputs
+    continuum     → full ontological continuum (S0→S1→S2→S∞)
+    depth 1/2/3   → lock output depth
+    depth auto    → adaptive depth (default)
+    help          → this message
+    exit          → end session
+
+  Personality (phrase-triggered, not keyword):
+    "be funny"          → comedy mode
+    "be socratic"       → Socratic mode
+    "be brief"          → minimal mode
+    "be poetic"         → poetic mode
+    "reset personality" → standard mode
+
+  Examples:
+    "I don't know what to choose"
+    "what is consciousness"
+    "derivative of x**3 + sin(x)"
+    "inf - inf"   "0*inf"   "inf/inf"
+    "I reject this theory"
+  ─────────────────────────────────────────────────────────────────
+"""
+
+SEP  = "═" * 66
+SEP2 = "─" * 66
+
 
 def main():
-    system = DualReceiverSystem()
-    SEP    = "=" * 66
+    sys_ = DualReceiverSystem()
 
     print(SEP)
-    print("  WORLDOLOGY — Infinity-Unity Theory  (Vol. I-II)")
-    print("  Dual-Receiver Simulation  |  Architecture v4")
-    print("  Philosophy: Taha Givarian  |  Code: AI  |  Feb 2026")
+    print(f"  WORLDOLOGY — ∞–Unity Theory  ({VERSION})")
+    print(f"  Dual-Receiver Simulation  |  Architecture {VERSION}")
+    print(f"  Philosophy: Taha Givarian  |  Code: AI  |  Feb 2026")
     print(SEP)
     print()
-    print("  Architecture:")
-    print("    Receiver I  (DMN) -> Observer, domain analysis, formal systems")
-    print("    Receiver II (TPN) -> 777 decision, always active, all domains")
-    print("    Synchronization   -> unified output, adaptive memory")
+    print("  Receiver I  (DMN) → Observer, domain analysis, formal systems")
+    print("  Receiver II (TPN) → 777 decision, always active, all domains")
     print()
-    print("  777 for formal questions = meta-decision (HOW to present)")
-    print("  777 for worldology       = actual decision guidance")
-    print()
-    print("  Personality adapts on request. Standards never change.")
-    print("  Try: 'be funny', 'be brief', 'be socratic', 'be poetic'")
-    print("  Try: 'I reject this theory' — see what happens.")
-    print()
-    print("  Commands: 'status'  'profile'  'continuum'  'depth 1/2/3'")
-    print("            'reset personality'  'exit'")
-    print("  Expressions: inf-inf   5+inf   inf/inf   -3*4")
+    print("  ∞–Unity arithmetic: ∞ op ∞ = ∞  |  Only NaN: 0 × ∞")
+    print("  Type 'help' for all commands.")
     print(SEP)
 
     while True:
@@ -952,68 +1045,62 @@ def main():
         except (EOFError, KeyboardInterrupt):
             print("\n  Cycle complete. Energy returns to Unity.")
             break
+
         if not raw:
             continue
 
-        # ── Exit ─────────────────────────────────────────────────
-        if raw.lower() == 'exit':
+        cmd = raw.lower()
+
+        if cmd == 'exit':
             print("  Cycle complete. Energy returns to Unity.")
             break
 
-        # ── Status ───────────────────────────────────────────────
-        if raw.lower() == 'status':
-            print(f"\n  Ethical state : {system.ethics.state.value.upper()}")
-            print(f"  Personality   : {PERSONALITY_LABELS[system.personality.mode]}")
-            print(f"  Depth mode    : {system.memory.depth_label()}")
-            print(f"  {system.ethics.unity_footer()}")
+        if cmd == 'help':
+            print(HELP_TEXT)
             continue
 
-        # ── Profile ──────────────────────────────────────────────
-        if raw.lower() == 'profile':
-            print(f"\n{system.memory.profile()}")
+        if cmd == 'status':
+            m, p, e = sys_.mem, sys_.pers, sys_.eth
+            print(f"\n  Ethical state    : {e.state.value.upper()}")
+            print(f"  Personality mode : {PERSONALITY_LABELS[p.mode]}")
+            print(f"  Depth mode       : {m.depth_label()} "
+                  f"({'locked' if m.depth_locked else 'adaptive'})")
+            print(f"  Turn count       : {m.turn_count}")
+            print(f"\n{e.unity_footer()}")
             continue
 
-        # ── Continuum ────────────────────────────────────────────
-        if raw.lower() == 'continuum':
+        if cmd == 'profile':
+            print(f"\n{sys_.mem.profile()}")
+            continue
+
+        if cmd == 'history':
+            print(f"\n{sys_.mem.last_inputs(5)}")
+            continue
+
+        if cmd == 'continuum':
             print()
             for state in OntologicalState:
                 print(STATE_FULL[state])
                 print()
             continue
 
-        # ── Depth ────────────────────────────────────────────────
-        if raw.lower().startswith('depth '):
-            try:
-                d = int(raw.split()[1])
-                if d in (1, 2, 3):
-                    system.memory.preferred_depth = d
-                    system.memory.depth_locked    = True
-                    print(f"  Depth locked to {d} ({system.memory.depth_label()}).")
-                else:
-                    print("  Depth must be 1, 2, or 3.")
-            except Exception:
-                print("  Usage: depth 1 / 2 / 3")
+        if cmd.startswith('depth '):
+            arg = cmd.split(None, 1)[1]
+            if arg == 'auto':
+                sys_.mem.depth_locked    = False
+                sys_.mem.preferred_depth = 2
+                print("  Depth → adaptive (auto).")
+            elif arg in ('1', '2', '3'):
+                sys_.mem.preferred_depth = int(arg)
+                sys_.mem.depth_locked    = True
+                print(f"  Depth locked → {arg} ({sys_.mem.depth_label()}).")
+            else:
+                print("  Usage: depth 1 / depth 2 / depth 3 / depth auto")
             continue
 
-        # ── Reset personality ─────────────────────────────────────
-        if raw.lower() in ('reset personality', 'standard mode'):
-            system.personality.reset()
-            print("  Personality reset to: Standard.")
-            continue
-
-        # ── Expression ───────────────────────────────────────────
-        parsed = parse_expression(raw)
-        if parsed:
-            a, op, b = parsed
-            print()
-            print(system.process_expression(a, b, op))
-            print("-" * 66)
-            continue
-
-        # ── All other input ───────────────────────────────────────
         print()
-        print(system.process(raw))
-        print("-" * 66)
+        print(sys_.process(raw))
+        print(SEP2)
 
 
 if __name__ == "__main__":
